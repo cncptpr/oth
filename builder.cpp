@@ -1,3 +1,23 @@
+/*
+This programm was created to compile, run and test one-file c/c++ excercises for uni.
+I got annoyed of always switching folders and changing my compile command.
+
+Compile this with
+    $ g++ --std=c++20 -o builder builder.cpp
+build any c/c++ file with
+    $ ./builder build path/to/file.c[pp]
+use 'run' instead of 'build' to run directly
+use 'test' to pipe contents of test files to the program
+(one execution per file)
+test files: e.g. path/to/file.1.test
+
+
+TODO:
+    run: forward arguments to programm
+    test: write out to file
+    test: compare with diffing tool to expected solution
+*/
+
 #include <iostream>
 #include <string>
 #include <cstdlib>
