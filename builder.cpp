@@ -21,33 +21,46 @@ test files: e.g. path/to/file.1.test
 
 namespace fs = std::filesystem;
 
+inline std::string base_name(const std::string &file) {
+    return file.substr(0, file.find_last_of('.'));
+}
+
+std::string make_command(const std::string &executable, const std::vector<std::string> &args) {
+    std::string command = executable;
+    for (const auto& arg : args)
+        command += " " + arg;
+    return command;
+}
+
 void build(const std::string& file) {
     std::string command;
     if (file.ends_with(".cpp")) {
-        command = "g++ -std=c++20 -o " + file.substr(0, file.find_last_of('.')) + " " + file;
+        command = "g++ -std=c++20 -o " + base_name(file) + " " + file;
     } else if (file.ends_with(".c")) {
-        command = "gcc -std=c11 -o " + file.substr(0, file.find_last_of('.')) + " " + file; // Use C11 for C files
+        command = "gcc -std=c11 -o " + base_name(file) + " " + file;
     } else {
         std::cerr << "Unsupported file type: " << file << std::endl;
         return;
     }
-
+    
     if (system(command.c_str()) != 0) {
-        std::cerr << "Build failed for " << file << std::endl;
+        // std::cerr << "Build failed for " << file << std::endl;
+        // gcc prints enough, no need to print a error message
     } else {
-        std::cout << "Built " << file << " successfully." << std::endl;
+        std::cerr << "Built " << file << " successfully." << std::endl;
     }
 }
 
 std::string find_best_match(const std::string& pattern) {
-    std::string command = "fzf -f " + pattern + " <<< \"$(find . | grep \"\\.c$\\|\\.cpp$\")\"";
+    const std::string command = "find . | grep \"\\.c$\\|\\.cpp$\" | fzf -f " + pattern;
+
     char buffer[128];
-    std::string result = "";
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
         std::cerr << "Failed to run fzf" << std::endl;
         return "";
     }
+    std::string result = "";
     while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
         result += buffer;
     }
@@ -58,21 +71,20 @@ std::string find_best_match(const std::string& pattern) {
 
 void run(const std::string& file, const std::vector<std::string>& args) {
     build(file);
-    std::string executable = file.substr(0, file.find_last_of('.'));
-    std::string command = executable;
-    for (const auto& arg : args) {
-        command += " " + arg;
-    }
+    const std::string executable = base_name(file);
+    auto command = make_command(executable, args);
     if (system(command.c_str()) != 0) {
         std::cerr << "Execution failed for " << executable << std::endl;
     }
 }
 
 void test(const std::string& file, const std::vector<std::string>& args) {
-    std::string baseName = file.substr(0, file.find_last_of('.'));
-    std::vector<std::string> testFiles;
+    // Build the executable
+    build(file);
 
     // Find all test files with .1.test, .2.test, etc.
+    const std::string baseName = base_name(file);
+    std::vector<std::string> testFiles;
     for (const auto& entry : fs::directory_iterator(fs::path(baseName).parent_path())) {
         if (entry.path().string().starts_with(baseName) && entry.path().extension() == ".test") {
             testFiles.push_back(entry.path().string());
@@ -84,34 +96,17 @@ void test(const std::string& file, const std::vector<std::string>& args) {
         return;
     }
 
+    const std::string command = make_command(baseName, args);
     for (const auto& testFile : testFiles) {
-        std::ifstream input(testFile);
-        if (!input) {
-            std::cerr << "Failed to open test file: " << testFile << std::endl;
-            continue;
-        }
-
-        // Read the entire content of the test file
-        std::string inputContent((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
-        input.close();
-
-        // Build the executable
-        std::string executable = file.substr(0, file.find_last_of('.'));
-        build(file);
-
         // Execute the program and pipe the entire content of the test file
-        std::string command = executable;
-        for (const auto& arg : args) {
-            command += " " + arg;
-        }
-        command += " <<< \"" + inputContent + "\"";
-        FILE* pipe = popen(command.c_str(), "r");
+        FILE* pipe = popen((command + " < \"" + testFile + "\"").c_str(), "r");
         if (!pipe) {
-            std::cerr << "Failed to run " << executable << std::endl;
+            std::cerr << "Failed to run " << baseName << std::endl;
             continue;
         }
 
-        std::string outputFile = testFile.substr(0, testFile.find_last_of('.')) + ".out";
+        const std::string testBaseName = base_name(testFile);
+        const std::string outputFile = testBaseName + ".out";
         std::ofstream output(outputFile);
         if (!output) {
             std::cerr << "Failed to open output file: " << outputFile << std::endl;
@@ -126,22 +121,21 @@ void test(const std::string& file, const std::vector<std::string>& args) {
         pclose(pipe);
         output.close();
 
-        std::string expectedFile = testFile.substr(0, testFile.find_last_of('.')) + ".expected";
+        const std::string expectedFile = testBaseName + ".expected";
         if (fs::exists(expectedFile)) {
             std::string diffTool;
-
             if (system("command -v delta > /dev/null 2>&1") == 0) {
                 diffTool = "delta";
             } else {
                 diffTool = "diff";
             }
 
-            std::string diffCommand = diffTool + " " + outputFile + " " + expectedFile;
-            if (system(diffCommand.c_str()) != 0) {
-                std::cerr << "Differences found for " << testFile << std::endl;
+            const std::string diffCommand = diffTool + " " + outputFile + " " + expectedFile;
+            if (system(diffCommand.c_str()) == 0) {
+                std::cout << "Test passed for " << testFile << std::endl;
             }
         } else {
-            std::cout << "Test " << testFile << " was run. No solution." << std::endl;
+            std::cout << "Test " << testFile << " was run. No 'expected' found to diff." << std::endl;
         }
 
     }
