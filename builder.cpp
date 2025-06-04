@@ -10,12 +10,6 @@ use 'run' instead of 'build' to run directly
 use 'test' to pipe contents of test files to the program
 (one execution per file)
 test files: e.g. path/to/file.1.test
-
-
-TODO:
-    run: forward arguments to programm
-    test: write out to file
-    test: compare with diffing tool to expected solution
 */
 
 #include <iostream>
@@ -45,15 +39,36 @@ void build(const std::string& file) {
     }
 }
 
-void run(const std::string& file) {
+std::string find_best_match(const std::string& pattern) {
+    std::string command = "fzf -f " + pattern + " <<< \"$(find . | grep \"\\.c$\\|\\.cpp$\")\"";
+    char buffer[128];
+    std::string result = "";
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::cerr << "Failed to run fzf" << std::endl;
+        return "";
+    }
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+    result.erase(result.find_last_not_of(" \n\r\t") + 1); // Trim trailing whitespace
+    return result;
+}
+
+void run(const std::string& file, const std::vector<std::string>& args) {
     build(file);
     std::string executable = file.substr(0, file.find_last_of('.'));
-    if (system((executable + " < /dev/stdin").c_str()) != 0) {
+    std::string command = executable;
+    for (const auto& arg : args) {
+        command += " " + arg;
+    }
+    if (system(command.c_str()) != 0) {
         std::cerr << "Execution failed for " << executable << std::endl;
     }
 }
 
-void test(const std::string& file) {
+void test(const std::string& file, const std::vector<std::string>& args) {
     std::string baseName = file.substr(0, file.find_last_of('.'));
     std::vector<std::string> testFiles;
 
@@ -85,35 +100,80 @@ void test(const std::string& file) {
         build(file);
 
         // Execute the program and pipe the entire content of the test file
-        FILE* pipe = popen((executable + " <<< \"" + inputContent + "\"").c_str(), "r");
+        std::string command = executable;
+        for (const auto& arg : args) {
+            command += " " + arg;
+        }
+        command += " <<< \"" + inputContent + "\"";
+        FILE* pipe = popen(command.c_str(), "r");
         if (!pipe) {
             std::cerr << "Failed to run " << executable << std::endl;
             continue;
         }
 
+        std::string outputFile = testFile.substr(0, testFile.find_last_of('.')) + ".out";
+        std::ofstream output(outputFile);
+        if (!output) {
+            std::cerr << "Failed to open output file: " << outputFile << std::endl;
+            pclose(pipe);
+            continue;
+        }
+
         char buffer[128];
         while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-            std::cout << buffer; // Output the result
+            output << buffer; // Write the result to the output file
         }
         pclose(pipe);
+        output.close();
+
+        std::string expectedFile = testFile.substr(0, testFile.find_last_of('.')) + ".expected";
+        if (fs::exists(expectedFile)) {
+            std::string diffTool;
+
+            if (system("command -v delta > /dev/null 2>&1") == 0) {
+                diffTool = "delta";
+            } else {
+                diffTool = "diff";
+            }
+
+            std::string diffCommand = diffTool + " " + outputFile + " " + expectedFile;
+            if (system(diffCommand.c_str()) != 0) {
+                std::cerr << "Differences found for " << testFile << std::endl;
+            }
+        } else {
+            std::cout << "Test " << testFile << " was run. No solution." << std::endl;
+        }
+
     }
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::cerr << "Usage: program [command] [file]" << std::endl;
+    if (argc < 3) {
+        std::cerr << "Usage: program [command] [file] [args...]" << std::endl;
         return 1;
     }
 
     std::string command = argv[1];
     std::string file = argv[2];
+    std::vector<std::string> args;
+    for (int i = 3; i < argc; ++i) {
+        args.push_back(argv[i]);
+    }
+
+    if (!fs::exists(file)) {
+        file = find_best_match(file);
+        if (file.empty()) {
+            std::cerr << "No matching file found." << std::endl;
+            return 1;
+        }
+    }
 
     if (command == "build") {
         build(file);
     } else if (command == "run") {
-        run(file);
+        run(file, args);
     } else if (command == "test") {
-        test(file);
+        test(file, args);
     } else {
         std::cerr << "Unknown command: " << command << std::endl;
         return 1;
