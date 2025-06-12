@@ -35,9 +35,9 @@ std::string make_command(const std::string &executable, const std::vector<std::s
 void build(const std::string& file) {
     std::string command;
     if (file.ends_with(".cpp")) {
-        command = "g++ -std=c++20 -o " + base_name(file) + " " + file;
+        command = "g++ -std=c++20 -g -o " + base_name(file) + " " + file;
     } else if (file.ends_with(".c")) {
-        command = "gcc -std=c11 -o " + base_name(file) + " " + file;
+        command = "gcc -std=c11 -g -o " + base_name(file) + " " + file;
     } else {
         std::cerr << "Unsupported file type: " << file << std::endl;
         return;
