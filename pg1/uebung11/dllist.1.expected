@@ -1,0 +1,48 @@
+Personalverwaltung - Menü:
+0 = Beenden
+1 = Alle Mitarbeiter ausgeben
+2 = Mitarbeiter hinzufügen
+3 = Mitarbeiter löschen
+Bitte auswählen: Bitte Nachnamen eingeben: Bitte Gehalt eingeben: Bitte Personalnummer eingeben: 
+Personalverwaltung - Menü:
+0 = Beenden
+1 = Alle Mitarbeiter ausgeben
+2 = Mitarbeiter hinzufügen
+3 = Mitarbeiter löschen
+Bitte auswählen: Bitte Nachnamen eingeben: Bitte Gehalt eingeben: Bitte Personalnummer eingeben: 
+Personalverwaltung - Menü:
+0 = Beenden
+1 = Alle Mitarbeiter ausgeben
+2 = Mitarbeiter hinzufügen
+3 = Mitarbeiter löschen
+Bitte auswählen: Anzahl Mitarbeiter: 2
+abc
+ Gehalt: 123
+ PersNr.: 123
+def
+ Gehalt: 456
+ PersNr.: 456
+
+Personalverwaltung - Menü:
+0 = Beenden
+1 = Alle Mitarbeiter ausgeben
+2 = Mitarbeiter hinzufügen
+3 = Mitarbeiter löschen
+Bitte auswählen: Welche Personalnummer soll gelöscht werden? Mitarbeiter abc wurde gelöscht!
+
+Personalverwaltung - Menü:
+0 = Beenden
+1 = Alle Mitarbeiter ausgeben
+2 = Mitarbeiter hinzufügen
+3 = Mitarbeiter löschen
+Bitte auswählen: Anzahl Mitarbeiter: 1
+def
+ Gehalt: 456
+ PersNr.: 456
+
+Personalverwaltung - Menü:
+0 = Beenden
+1 = Alle Mitarbeiter ausgeben
+2 = Mitarbeiter hinzufügen
+3 = Mitarbeiter löschen
+Bitte auswählen: 
